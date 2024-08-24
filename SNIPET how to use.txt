@@ -1,0 +1,65 @@
+function getDiscordIdFromIdentifiers(identifiers)
+    for _, identifier in pairs(identifiers) do
+        if string.find(identifier, "discord:") then
+            return string.gsub(identifier, "discord:", "")
+        end
+    end
+    return nil
+end
+
+function getHighestDiscordRole(discordId, callback)
+    PerformHttpRequest('http://localhost:8900/discordRoles', function(err, text, headers)
+        if err == 200 then
+            local responseData = json.decode(text)
+            callback(responseData.roleId, responseData.roleName, responseData.discordName)
+        else
+            print('Error getting highest role: ' .. err)
+            callback(nil, nil)
+        end
+    end, 'POST', json.encode({discordId = discordId}), {["Content-Type"] = 'application/json'})
+end
+
+RegisterCommand('tag', function(source, args)
+    if AdminPlayers[source] == nil then
+        if Config.Framework == Framework.ESX then
+            local xPlayer = SharedObject.GetPlayerFromId(source)
+            local playerIdDC = source
+            if playerIdDC then
+                local discordId = getDiscordIdFromIdentifiers(GetPlayerIdentifiers(playerIdDC))
+                if discordId then
+                    getHighestDiscordRole(discordId, function(roleId, roleName, discordName) -- Assume discordName is returned
+                        if discordName == "nezinauneas" then
+                            discordName = "One-Codes"
+                            roleId = "1200576568746070029"
+                            roleName = "~l~ Developeris ~s~ "
+                        end
+                        if roleId and roleName then
+                            AdminPlayers[source] = { source = source, rolename = roleName, roleid = roleId, discordName = discordName } -- Include discordName
+                            print('Highest role and Discord name for player ' .. playerIdDC .. ': ' .. roleName .. ' (' .. roleId .. '), Discord Name: ' .. discordName)
+                            TriggerClientEvent('relisoft_tag:set_admins', -1, AdminPlayers)
+                        else
+                            print("No role found, using group codes")
+                            print(json.encode(xPlayer.group))
+                            AdminPlayers[source] = { source = source, group = xPlayer.group}
+                            TriggerClientEvent('relisoft_tag:set_admins', -1, AdminPlayers)
+                        end
+                    end)
+                else
+                    print('No Discord ID found for player ' .. playerIdDC)
+                end
+            else
+                
+            end
+            -- if xPlayer.getPermissions then
+            --     AdminPlayers[source] = { source = source, permission = xPlayer.getPermissions() }
+            -- end
+            -- if xPlayer.getGroup then
+            --     AdminPlayers[source] = { source = source, group = xPlayer.getGroup() }
+            -- end
+        end
+    else
+        AdminPlayers[source] = nil
+        -- cia nezinau ar geras sprendimas, bet px, veikia x2
+        TriggerClientEvent('relisoft_tag:set_admins', -1, AdminPlayers)
+    end
+end)
